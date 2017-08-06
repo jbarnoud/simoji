@@ -1023,12 +1023,11 @@ class TopReplacer(object):
     def __init__(self, lines, correspondence=None):
         self._lines = lines
         if correspondence is None:
-            self.correspondence = {}
-        for key in ('moltypes', 'resnames', 'atomnames', 'atomtypes'):
-            self.correspondence[key] = collections.defaultdict(
-                self.new_emoji,
-                self.correspondence.get(key, {})
-            )
+            correspondence = {}
+        if not isinstance(correspondence, collections.defaultdict):
+            correspondence = collections.defaultdict(self.new_emoji, correspondence)
+        self.correspondence = correspondence
+        self._emojis = collections.deque(random.sample(EMOJIS, k=len(EMOJIS)))
         self._transformers = {
             'atomtypes': self._atomtypes,
             'nonbond_params': self._nonbond_params,
@@ -1036,7 +1035,7 @@ class TopReplacer(object):
             'atoms': self._atoms,
             'molecules': self._molecules,
         }
-        self._emojis = collections.deque(random.sample(EMOJIS, k=len(EMOJIS)))
+
 
     def new_emoji(self):
         return self._emojis.pop()
@@ -1062,15 +1061,15 @@ class TopReplacer(object):
         if not uncommented:
             return line
         name = line.split()[0]
-        emoji = self.correspondence['atomtypes'][name]
+        emoji = self.correspondence[name]
         new_line = line.replace(name, emoji, 1)
         return new_line
 
     def _nonbond_params(self, line):
         uncommented = uncomment(line).strip()
         name_a, name_b, *_ = uncommented.split()
-        emoji_a = self.correspondence['atomtypes'][name_a]
-        emoji_b = self.correspondence['atomtypes'][name_b]
+        emoji_a = self.correspondence[name_a]
+        emoji_b = self.correspondence[name_b]
         new_line = line.replace(name_a, emoji_a, 1)
         new_line = new_line.replace(name_b, emoji_b, 1)
         return new_line
@@ -1078,16 +1077,16 @@ class TopReplacer(object):
     def _moleculetype(self, line):
         uncommented = uncomment(line).strip()
         name, *_ = uncommented.split()
-        emoji = self.correspondence['moltypes'][name]
+        emoji = self.correspondence[name]
         new_line = line.replace(name, emoji, 1)
         return new_line
 
     def _atoms(self, line):
         uncommented = uncomment(line).strip()
         _, atomtype, _, resname, atomname, *_ = uncommented.split()
-        emoji_atomtype = self.correspondence['atomtypes'][atomtype]
-        emoji_resname = self.correspondence['resnames'][resname]
-        emoji_atomname = self.correspondence['atomnames'][atomname]
+        emoji_atomtype = self.correspondence[atomtype]
+        emoji_resname = self.correspondence[resname]
+        emoji_atomname = self.correspondence[atomname]
         new_line = line.replace(atomtype, emoji_atomtype, 1)
         new_line = new_line.replace(resname, emoji_resname, 1)
         new_line = new_line.replace(atomname, emoji_atomname, 1)
@@ -1096,7 +1095,7 @@ class TopReplacer(object):
     def _molecules(self, line):
         uncommented = uncomment(line).strip()
         name, *_ = uncommented.split()
-        emoji = self.correspondence['moltypes'][name]
+        emoji = self.correspondence[name]
         new_line = line.replace(name, emoji, 1)
         return new_line
 
