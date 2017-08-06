@@ -134,6 +134,11 @@ class TopReplacer(object):
     def __iter__(self):
         context = None
         continuation = False
+        # Maybe it is safer to have a disclaimer. We never know.
+        yield '; This file has been emojified with simoji:\n'
+        yield '; <https://github.com/jbarnoud/simoji>\n'
+        yield '; You probably do not want to use it...\n'
+        yield '\n'
         for line in self._lines:
             uncommented = self._uncomment(line).strip()
             section = self._section_name_if_any(uncommented)
