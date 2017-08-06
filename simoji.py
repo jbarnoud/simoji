@@ -182,14 +182,43 @@ class TopReplacer(object):
                 yield line
 
 
+def gro_replacer(lines, correspondence=None):
+    if correspondence is None:
+        correspondence = EmojiTransTable()
+    yield next(lines)  # Title
+    num_str = next(lines)  # Number of atoms
+    yield num_str
+    # We want to stop iterating before the last line so we can get the box
+    # untouched latter. To do that we cap the iteration with a range.
+    for _, line in zip(range(int(num_str)), lines):
+        resname = line[5:10]
+        atom_name = line[10:15]
+        res_emoji = correspondence[resname]
+        atom_emoji = correspondence[atom_name]
+        # Names should be 5 bytes to fit the GRO format, so we need to know
+        # how many bytes the emojis are and fill the gaps with spaces.
+        res_emoji = res_emoji + ' ' * (5 - len(res_emoji.encode('utf-8')))
+        atom_emoji = atom_emoji + ' ' * (5 - len(atom_emoji.encode('utf-8')))
+        yield line[:5] + res_emoji + atom_emoji + line[15:]
+    yield next(lines)
+
+
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-f', dest='structure')
     parser.add_argument('-p', dest='topology')
     args = parser.parse_args()
 
-    with open(args.topology) as infile:
-        for line in TopReplacer(infile):
-            print(line, end='')
+    if args.topology is not None:
+        with open(args.topology) as infile:
+            for line in TopReplacer(infile):
+                print(line, end='')
+
+    if args.structure is not None:
+        with open(args.structure) as infile:
+            for line in gro_replacer(infile):
+                print(line, end='')
+
 
 
 if __name__ == '__main__':
