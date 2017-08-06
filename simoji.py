@@ -67,8 +67,11 @@ class EmojiTransTable(object):
 
 
 class TopReplacer(object):
-    def __init__(self, lines, correspondence=None):
-        self._lines = lines
+    def __init__(self, lines, correspondence=None, include=True):
+        if include:
+            self._lines = self._recursive_top_lines(lines)
+        else:
+            self._lines = lines
         if correspondence is None:
             self.correspondence = EmojiTransTable()
         else:
@@ -84,8 +87,8 @@ class TopReplacer(object):
     def __iter__(self):
         context = None
         for line in self._lines:
-            uncommented = uncomment(line).strip()
-            section = _section_name_if_any(uncommented)
+            uncommented = self._uncomment(line).strip()
+            section = self._section_name_if_any(uncommented)
             if not uncommented:
                 yield line
             elif section is not None:
@@ -98,7 +101,7 @@ class TopReplacer(object):
         return line
 
     def _atomtypes(self, line):
-        uncommented = uncomment(line).strip()
+        uncommented = self._uncomment(line).strip()
         if not uncommented:
             return line
         name = line.split()[0]
@@ -107,7 +110,7 @@ class TopReplacer(object):
         return new_line
 
     def _nonbond_params(self, line):
-        uncommented = uncomment(line).strip()
+        uncommented = self._uncomment(line).strip()
         name_a, name_b, *_ = uncommented.split()
         emoji_a = self.correspondence[name_a]
         emoji_b = self.correspondence[name_b]
@@ -116,14 +119,14 @@ class TopReplacer(object):
         return new_line
 
     def _moleculetype(self, line):
-        uncommented = uncomment(line).strip()
+        uncommented = self._uncomment(line).strip()
         name, *_ = uncommented.split()
         emoji = self.correspondence[name]
         new_line = line.replace(name, emoji, 1)
         return new_line
 
     def _atoms(self, line):
-        uncommented = uncomment(line).strip()
+        uncommented = self._uncomment(line).strip()
         _, atomtype, _, resname, atomname, *_ = uncommented.split()
         emoji_atomtype = self.correspondence[atomtype]
         emoji_resname = self.correspondence[resname]
@@ -134,50 +137,49 @@ class TopReplacer(object):
         return new_line
 
     def _molecules(self, line):
-        uncommented = uncomment(line).strip()
+        uncommented = self._uncomment(line).strip()
         name, *_ = uncommented.split()
         emoji = self.correspondence[name]
         new_line = line.replace(name, emoji, 1)
         return new_line
 
-
-def uncomment(line, comment_char=';'):
-    pos = line.find(comment_char)
-    if pos > -1:
-        line = line[:pos]
-    return line
-
-
-def recursive_top_lines(infile):
-    for line in infile:
-        uncommented = uncomment(line).strip()
-        fname = _include_fname_if_any(uncommented, infile.name)
-        if fname is not None:
-            with open(fname) as infile:
-                yield from recursive_top_lines(infile)
-        else:
-            yield line
-
-
-def _include_fname_if_any(line, parent):
-    if line.startswith('#include'):
-        parent_dir = os.path.dirname(parent)
-        _, *fname = line.split()
-        fname = ' '.join(fname)
-        if not fname:
-            raise IOError('Include with no file name')
-        if fname[0] == '<' and fname[-1] == '>':
-            raise NotImplementedError('Cannot yet search the gromacs library')
-        if not (fname[0] == fname[-1] == '"'):
-            raise IOError('Missformated include')
-        return os.path.join(parent_dir, fname[1:-1])
-    return None
-
-
-def _section_name_if_any(line):
-    if not line or line[0] != '[' or line[-1] != ']':
+    @staticmethod
+    def _include_fname_if_any(line, parent):
+        if line.startswith('#include'):
+            parent_dir = os.path.dirname(parent)
+            _, *fname = line.split()
+            fname = ' '.join(fname)
+            if not fname:
+                raise IOError('Include with no file name')
+            if fname[0] == '<' and fname[-1] == '>':
+                raise NotImplementedError('Cannot yet search the gromacs library')
+            if not (fname[0] == fname[-1] == '"'):
+                raise IOError('Missformated include')
+            return os.path.join(parent_dir, fname[1:-1])
         return None
-    return line[1:-1].strip().lower()
+
+    @staticmethod
+    def _section_name_if_any(line):
+        if not line or line[0] != '[' or line[-1] != ']':
+            return None
+        return line[1:-1].strip().lower()
+
+    @staticmethod
+    def _uncomment(line, comment_char=';'):
+        pos = line.find(comment_char)
+        if pos > -1:
+            line = line[:pos]
+        return line
+
+    def _recursive_top_lines(self, infile):
+        for line in infile:
+            uncommented = self._uncomment(line).strip()
+            fname = self._include_fname_if_any(uncommented, infile.name)
+            if fname is not None:
+                with open(fname) as infile:
+                    yield from self._recursive_top_lines(infile)
+            else:
+                yield line
 
 
 def main():
@@ -186,7 +188,7 @@ def main():
     args = parser.parse_args()
 
     with open(args.topology) as infile:
-        for line in TopReplacer(recursive_top_lines(infile)):
+        for line in TopReplacer(infile):
             print(line, end='')
 
 
