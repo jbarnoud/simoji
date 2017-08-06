@@ -6,6 +6,9 @@ import itertools
 import os
 import random
 
+# List of emoji originally obtained from "emoji_list":
+# <https://github.com/vincentmwong/emoji_list>.
+# The "emoji_list" package is released under the MIT licence.
 EMOJI_RANGES = [
     (8205, 8206), (8252, 8253), (8265, 8266), (8482, 8483), (8505, 8506),
     (8596, 8602), (8617, 8619), (8986, 8988), (9000, 9001), (9167, 9168),
