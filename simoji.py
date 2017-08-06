@@ -2,6 +2,7 @@
 
 import argparse
 import collections
+import configparser
 import itertools
 import os
 import random
@@ -64,6 +65,26 @@ class EmojiTransTable(object):
 
     def next_emoji(self):
         return self._emojis.pop()
+
+    def load(self, fname):
+        with open(fname) as infile:
+            for linenum, line in enumerate(infile):
+                if not line:
+                    continue
+                splitted = line.split('=')
+                if len(splitted) == 2:
+                    name, emoji = splitted
+                else:
+                    raise IOError('Invalid line {} in "{}".'
+                                  .format(linenum, fname))
+                name = name.strip()
+                emoji = emoji.strip()
+                self.correspondence[name] = emoji
+
+    def write(self, fname):
+        with open(fname, 'w') as outfile:
+            for name, emoji in self.correspondence.items():
+                print('{} = {}'.format(name, emoji), file=outfile)
 
 
 class TopReplacer(object):
@@ -191,8 +212,8 @@ def gro_replacer(lines, correspondence=None):
     # We want to stop iterating before the last line so we can get the box
     # untouched latter. To do that we cap the iteration with a range.
     for _, line in zip(range(int(num_str)), lines):
-        resname = line[5:10]
-        atom_name = line[10:15]
+        resname = line[5:10].strip()
+        atom_name = line[10:15].strip()
         res_emoji = correspondence[resname]
         atom_emoji = correspondence[atom_name]
         # Names should be 5 bytes to fit the GRO format, so we need to know
@@ -207,18 +228,26 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', dest='structure')
     parser.add_argument('-p', dest='topology')
+    parser.add_argument('-t', dest='transtable')
+    parser.add_argument('-ot', dest='out_transtable')
     args = parser.parse_args()
+
+    correspondence = EmojiTransTable()
+    if args.transtable is not None:
+        correspondence.load(args.transtable)
 
     if args.topology is not None:
         with open(args.topology) as infile:
-            for line in TopReplacer(infile):
+            for line in TopReplacer(infile, correspondence=correspondence):
                 print(line, end='')
 
     if args.structure is not None:
         with open(args.structure) as infile:
-            for line in gro_replacer(infile):
+            for line in gro_replacer(infile, correspondence=correspondence):
                 print(line, end='')
 
+    if args.out_transtable is not None:
+        correspondence.write(args.out_transtable)
 
 
 if __name__ == '__main__':
