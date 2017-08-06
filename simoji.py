@@ -63,6 +63,8 @@ class EmojiTransTable(object):
     def __init__(self):
         self._emojis = collections.deque(random.sample(EMOJIS, k=len(EMOJIS)))
         self.correspondence = collections.defaultdict(self.next_emoji)
+        # 'X' as an atom type is considered a joker, it has to stay
+        self.correspondence['X'] = 'X'
 
     def __getitem__(self, key):
         return self.correspondence[key]
@@ -94,6 +96,16 @@ class EmojiTransTable(object):
                 print('{} = {}'.format(name, emoji), file=outfile)
 
 
+def _change_n_names(nfields):
+    def wraped(self, line):
+        names = line.split()[:nfields]
+        for name in names:
+            emoji = self.correspondence[name]
+            line = line.replace(name, emoji, 1)
+        return line
+    return wraped
+
+
 class TopReplacer(object):
     def __init__(self, lines, correspondence=None, include=True):
         if include:
@@ -105,19 +117,27 @@ class TopReplacer(object):
         else:
             self.correspondence = correspondence
         self._transformers = {
-            'atomtypes': self._atomtypes,
-            'nonbond_params': self._nonbond_params,
-            'moleculetype': self._moleculetype,
+            'atomtypes': self._one_name,
+            'nonbond_params': self._two_names,
+            'moleculetype': self._one_name,
             'atoms': self._atoms,
-            'molecules': self._molecules,
+            'molecules': self._one_name,
+            'pairtypes': self._two_names,
+            'bondtypes': self._two_names,
+            'constrainttypes': self._two_names,
+            'angletypes': self._three_names,
+            'dihedraltypes': self._four_names,
+            'implicit_genborn_params': self._one_name,
+            'cmaptypes': self._five_names,
         }
 
     def __iter__(self):
         context = None
+        continuation = False
         for line in self._lines:
             uncommented = self._uncomment(line).strip()
             section = self._section_name_if_any(uncommented)
-            if not uncommented:
+            if continuation or not uncommented or uncommented[0] == '#':
                 yield line
             elif section is not None:
                 context = section
@@ -125,33 +145,19 @@ class TopReplacer(object):
             else:
                 yield self._transformers.get(context, self._neutral)(line)
 
+            if len(line) >=2 and line[-2] == '\\':
+                continuation = True
+            else:
+                continuation = False
+
+    _one_name = _change_n_names(1)
+    _two_names = _change_n_names(2)
+    _three_names = _change_n_names(3)
+    _four_names = _change_n_names(4)
+    _five_names = _change_n_names(5)
+        
     def _neutral(self, line):
         return line
-
-    def _atomtypes(self, line):
-        uncommented = self._uncomment(line).strip()
-        if not uncommented:
-            return line
-        name = line.split()[0]
-        emoji = self.correspondence[name]
-        new_line = line.replace(name, emoji, 1)
-        return new_line
-
-    def _nonbond_params(self, line):
-        uncommented = self._uncomment(line).strip()
-        name_a, name_b, *_ = uncommented.split()
-        emoji_a = self.correspondence[name_a]
-        emoji_b = self.correspondence[name_b]
-        new_line = line.replace(name_a, emoji_a, 1)
-        new_line = new_line.replace(name_b, emoji_b, 1)
-        return new_line
-
-    def _moleculetype(self, line):
-        uncommented = self._uncomment(line).strip()
-        name, *_ = uncommented.split()
-        emoji = self.correspondence[name]
-        new_line = line.replace(name, emoji, 1)
-        return new_line
 
     def _atoms(self, line):
         uncommented = self._uncomment(line).strip()
@@ -164,13 +170,6 @@ class TopReplacer(object):
         new_line = new_line.replace(atomname, emoji_atomname, 1)
         return new_line
 
-    def _molecules(self, line):
-        uncommented = self._uncomment(line).strip()
-        name, *_ = uncommented.split()
-        emoji = self.correspondence[name]
-        new_line = line.replace(name, emoji, 1)
-        return new_line
-
     @staticmethod
     def _include_fname_if_any(line, parent):
         if line.startswith('#include'):
@@ -179,11 +178,15 @@ class TopReplacer(object):
             fname = ' '.join(fname)
             if not fname:
                 raise IOError('Include with no file name')
-            if fname[0] == '<' and fname[-1] == '>':
-                raise NotImplementedError('Cannot yet search the gromacs library')
             if not (fname[0] == fname[-1] == '"'):
                 raise IOError('Missformated include')
-            return os.path.join(parent_dir, fname[1:-1])
+            fname = os.path.join(parent_dir, fname[1:-1])
+            if os.path.exists(fname):
+                return fname
+            if 'GMXDATA' in os.environ:
+                fname = os.path.join(os.environ['GMXDATA'], 'top', fname)
+                if os.path.exists(fname):
+                    return fname
         return None
 
     @staticmethod
@@ -200,9 +203,10 @@ class TopReplacer(object):
         return line
 
     def _recursive_top_lines(self, infile):
+        name = infile.name
         for line in infile:
             uncommented = self._uncomment(line).strip()
-            fname = self._include_fname_if_any(uncommented, infile.name)
+            fname = self._include_fname_if_any(uncommented, name)
             if fname is not None:
                 with open(fname) as infile:
                     yield from self._recursive_top_lines(infile)
