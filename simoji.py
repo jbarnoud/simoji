@@ -240,15 +240,15 @@ def gro_replacer(lines, correspondence=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--version', action='version', version=__version__)
-    parser.add_argument('-f', dest='structure', help='Input structure (.gro)')
-    parser.add_argument('-p', dest='topology', help='Input topology (.top/itp)')
-    parser.add_argument('-t', dest='transtable', 'Input correspondance table')
+    parser.add_argument('-f', dest='structure', help='input structure (.gro)')
+    parser.add_argument('-p', dest='topology', help='input topology (.top/itp)')
+    parser.add_argument('-t', dest='transtable', help='input correspondance table')
     parser.add_argument('-o', dest='out_structure', default='emoji.gro',
-                        help='Output structure (.gro)')
+                        help='output structure (.gro)')
     parser.add_argument('-op', dest='out_topology', default='emoji.top',
-                        help='Output topology (.top/itp)')
+                        help='output topology (.top/itp)')
     parser.add_argument('-ot', dest='out_transtable',
-                        help='Output correspondence table')
+                        help='output correspondence table')
     args = parser.parse_args()
 
     if (args.structure, args.topology) == (None, None):
