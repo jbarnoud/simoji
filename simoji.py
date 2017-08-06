@@ -1,11 +1,18 @@
 #!/usr/bin/env python
 
+"""
+Replace names by emojis in GROMACS input files.
+"""
+
 import argparse
 import collections
 import configparser
 import itertools
 import os
 import random
+
+__author__ = 'Jonathan Barnoud'
+__version__ = '0.1.0dev0'
 
 # List of emoji originally obtained from "emoji_list":
 # <https://github.com/vincentmwong/emoji_list>.
@@ -231,14 +238,21 @@ def gro_replacer(lines, correspondence=None):
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-f', dest='structure')
-    parser.add_argument('-p', dest='topology')
-    parser.add_argument('-t', dest='transtable')
-    parser.add_argument('-o', dest='out_structure', default='emoji.gro')
-    parser.add_argument('-op', dest='out_topology', default='emoji.top')
-    parser.add_argument('-ot', dest='out_transtable')
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--version', action='version', version=__version__)
+    parser.add_argument('-f', dest='structure', help='Input structure (.gro)')
+    parser.add_argument('-p', dest='topology', help='Input topology (.top/itp)')
+    parser.add_argument('-t', dest='transtable', 'Input correspondance table')
+    parser.add_argument('-o', dest='out_structure', default='emoji.gro',
+                        help='Output structure (.gro)')
+    parser.add_argument('-op', dest='out_topology', default='emoji.top',
+                        help='Output topology (.top/itp)')
+    parser.add_argument('-ot', dest='out_transtable',
+                        help='Output correspondence table')
     args = parser.parse_args()
+
+    if (args.structure, args.topology) == (None, None):
+        parser.error('Hey! I do not have anything to do.')
 
     correspondence = EmojiTransTable()
     if args.transtable is not None:

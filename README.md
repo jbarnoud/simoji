@@ -7,7 +7,7 @@ or molecule types for much more insightful simulations. Simoji replaces all
 names in a topology and in a structure by emojis to run such emoji molecular
 dynamics simulations.
 
-Usage: python3 simoji.py [options]
+Usage: `python3 simoji.py [options]`
 
 Options:
 
