@@ -1019,15 +1019,28 @@ EMOJIS = list(set(
 ))
 
 
+class EmojiTransTable(object):
+    def __init__(self):
+        self._emojis = collections.deque(random.sample(EMOJIS, k=len(EMOJIS)))
+        self.correspondence = collections.defaultdict(self.next_emoji)
+
+    def __getitem__(self, key):
+        return self.correspondence[key]
+
+    def __setitem__(self, key, value):
+        self.correspondence[key] = value
+
+    def next_emoji(self):
+        return self._emojis.pop()
+
+
 class TopReplacer(object):
     def __init__(self, lines, correspondence=None):
         self._lines = lines
         if correspondence is None:
-            correspondence = {}
-        if not isinstance(correspondence, collections.defaultdict):
-            correspondence = collections.defaultdict(self.new_emoji, correspondence)
-        self.correspondence = correspondence
-        self._emojis = collections.deque(random.sample(EMOJIS, k=len(EMOJIS)))
+            self.correspondence = EmojiTransTable()
+        else:
+            self.correspondence = correspondence
         self._transformers = {
             'atomtypes': self._atomtypes,
             'nonbond_params': self._nonbond_params,
@@ -1036,9 +1049,6 @@ class TopReplacer(object):
             'molecules': self._molecules,
         }
 
-
-    def new_emoji(self):
-        return self._emojis.pop()
 
     def __iter__(self):
         context = None
