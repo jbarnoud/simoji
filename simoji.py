@@ -203,6 +203,12 @@ class TopReplacer(object):
                 yield line
 
 
+def write(fname, lines):
+    with open(fname, 'w') as outfile:
+        for line in lines:
+            print(line, end='', file=outfile)
+
+
 def gro_replacer(lines, correspondence=None):
     if correspondence is None:
         correspondence = EmojiTransTable()
@@ -229,6 +235,8 @@ def main():
     parser.add_argument('-f', dest='structure')
     parser.add_argument('-p', dest='topology')
     parser.add_argument('-t', dest='transtable')
+    parser.add_argument('-o', dest='out_structure', default='emoji.gro')
+    parser.add_argument('-op', dest='out_topology', default='emoji.top')
     parser.add_argument('-ot', dest='out_transtable')
     args = parser.parse_args()
 
@@ -238,13 +246,13 @@ def main():
 
     if args.topology is not None:
         with open(args.topology) as infile:
-            for line in TopReplacer(infile, correspondence=correspondence):
-                print(line, end='')
+            lines = TopReplacer(infile, correspondence=correspondence)
+            write(args.out_topology, lines)
 
     if args.structure is not None:
         with open(args.structure) as infile:
-            for line in gro_replacer(infile, correspondence=correspondence):
-                print(line, end='')
+            lines = gro_replacer(infile, correspondence=correspondence)
+            write(args.out_structure, lines)
 
     if args.out_transtable is not None:
         correspondence.write(args.out_transtable)
@@ -252,4 +260,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
